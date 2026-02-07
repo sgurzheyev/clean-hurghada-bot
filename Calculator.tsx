@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PropertyType, CleaningType, Language } from '../types';
+import { PropertyType, CleaningType, Language } from './types';
 import { PRICING_MATRIX, UI_TEXT, AREAS_HURGHADA } from './constants';
 
 interface CalculatorProps {
