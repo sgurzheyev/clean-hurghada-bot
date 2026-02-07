@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Language } from '../types';
-import { UI_TEXT } from '../constants';
+import { UI_TEXT } from './constants';
 
 interface RatingSystemProps {
   lang: Language;
