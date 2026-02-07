@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateResponse, analyzeStainImage } from './services/geminiService';
+import { generateResponse, analyzeStainImage } from './geminiService';
 import { Message, Language } from './types';
 import { UI_TEXT } from './constants';
-import Calculator from './components/Calculator';
-import BookingForm from './components/BookingForm';
-import RatingSystem from './components/RatingSystem';
+import Calculator from './Calculator';
+import BookingForm from './BookingForm';
+import RatingSystem from './RatingSystem';
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Language>('ar');
