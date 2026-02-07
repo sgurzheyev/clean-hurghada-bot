@@ -1,0 +1,7 @@
+{
+  "name": "Clean Hurghada",
+  "description": "Premium cleaning service booking and assistant for Hurghada, Red Sea.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
