@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Language, BookingData } from '../types';
+import { Language, BookingData } from './types';
 import { AREAS_HURGHADA, UI_TEXT } from './constants';
 
 interface BookingFormProps {
