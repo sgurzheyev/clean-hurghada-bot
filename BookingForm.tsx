@@ -30,12 +30,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ lang, initialPrice, initialDe
 
   const finalPrice = Math.round(formData.price * 1.15); // Adding 15% fee
 
-  const handleSubmitDetails = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStep('payment');
-  };
-
- const handlePayment = async () => {
+  const handlePayment = async () => {
   try {
     const apiKey = import.meta.env.VITE_PAYMOB_API_KEY;
     const integrationId = import.meta.env.VITE_PAYMOB_INTEGRATION_ID;
@@ -45,39 +40,41 @@ const BookingForm: React.FC<BookingFormProps> = ({ lang, initialPrice, initialDe
       return;
     }
 
-    // 1. Создаём заказ в Paymob
+    console.log("Step 1: Запуск оплаты, integrationId:", integrationId);
+
+    // 1. Создаём заказ
     const orderResponse = await fetch('https://accept.paymob.com/api/ecommerce/orders', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         auth_token: apiKey,
         delivery_needed: "false",
-        amount_cents: finalPrice * 100, // цена в пиастрах (805 → 80500)
+        amount_cents: finalPrice * 100,
         currency: "EGP",
         items: [],
       }),
     });
 
-    if (!orderResponse.ok) throw new Error('Ошибка создания заказа');
+    if (!orderResponse.ok) {
+      const errorText = await orderResponse.text();
+      throw new Error(`Ошибка создания заказа: ${errorText}`);
+    }
 
     const orderData = await orderResponse.json();
     const orderId = orderData.id;
+    console.log("Step 2: Заказ создан, orderId:", orderId);
 
     // 2. Получаем payment key
     const paymentResponse = await fetch('https://accept.paymob.com/api/acceptance/payment_keys', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         auth_token: apiKey,
         amount_cents: finalPrice * 100,
-        expiration: 3600, // 1 час
+        expiration: 3600,
         order_id: orderId,
         billing_data: {
-          email: "user@example.com", // можно заменить на реальный email клиента
+          email: "user@example.com",
           first_name: formData.name.split(' ')[0] || "Client",
           last_name: formData.name.split(' ').slice(1).join(' ') || "User",
           phone_number: formData.phone,
@@ -90,12 +87,16 @@ const BookingForm: React.FC<BookingFormProps> = ({ lang, initialPrice, initialDe
       }),
     });
 
-    if (!paymentResponse.ok) throw new Error('Ошибка получения payment key');
+    if (!paymentResponse.ok) {
+      const errorText = await paymentResponse.text();
+      throw new Error(`Ошибка payment key: ${errorText}`);
+    }
 
     const paymentData = await paymentResponse.json();
     const paymentKey = paymentData.token;
+    console.log("Step 3: Payment key получен:", paymentKey);
 
-    // 3. Открываем Paymob попап (iframe)
+    // 3. Открываем попап
     const popup = window.open(
       `https://accept.paymob.com/api/acceptance/iframes/${integrationId}?payment_token=${paymentKey}`,
       '_blank',
@@ -104,20 +105,22 @@ const BookingForm: React.FC<BookingFormProps> = ({ lang, initialPrice, initialDe
 
     if (!popup) {
       alert("Разрешите всплывающие окна в браузере!");
+      return;
     }
 
-    // Опционально: ждём закрытия попапа и подтверждаем успех (простой вариант)
+    // Ждём закрытия попапа (но НЕ подтверждаем успех автоматически)
     const checkPopup = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopup);
-        // Здесь можно добавить проверку статуса через webhook позже
-        onSuccess(); // показываем "Бронирование подтверждено"
+        alert("Оплата завершена или отменена. Проверьте статус в личном кабинете.");
+        // НЕ вызываем onSuccess() здесь!
+        // Добавим позже webhook для реального подтверждения
       }
     }, 1000);
 
   } catch (err) {
     console.error('Paymob error:', err);
-    alert("Ошибка оплаты. Попробуйте позже или свяжитесь с нами.");
+    alert("Ошибка оплаты: " + (err.message || "Неизвестная ошибка"));
   }
 };
 
