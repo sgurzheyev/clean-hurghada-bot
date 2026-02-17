@@ -35,12 +35,91 @@ const BookingForm: React.FC<BookingFormProps> = ({ lang, initialPrice, initialDe
     setStep('payment');
   };
 
-  const handlePayment = () => {
-    // Simulate payment process
-    setTimeout(() => {
-        onSuccess();
-    }, 1500);
-  };
+ const handlePayment = async () => {
+  try {
+    const apiKey = import.meta.env.VITE_PAYMOB_API_KEY;
+    const integrationId = import.meta.env.VITE_PAYMOB_INTEGRATION_ID;
+
+    if (!apiKey || !integrationId) {
+      alert("Ошибка: ключи Paymob не настроены. Свяжитесь с поддержкой.");
+      return;
+    }
+
+    // 1. Создаём заказ в Paymob
+    const orderResponse = await fetch('https://accept.paymob.com/api/ecommerce/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        auth_token: apiKey,
+        delivery_needed: "false",
+        amount_cents: finalPrice * 100, // цена в пиастрах (805 → 80500)
+        currency: "EGP",
+        items: [],
+      }),
+    });
+
+    if (!orderResponse.ok) throw new Error('Ошибка создания заказа');
+
+    const orderData = await orderResponse.json();
+    const orderId = orderData.id;
+
+    // 2. Получаем payment key
+    const paymentResponse = await fetch('https://accept.paymob.com/api/acceptance/payment_keys', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        auth_token: apiKey,
+        amount_cents: finalPrice * 100,
+        expiration: 3600, // 1 час
+        order_id: orderId,
+        billing_data: {
+          email: "user@example.com", // можно заменить на реальный email клиента
+          first_name: formData.name.split(' ')[0] || "Client",
+          last_name: formData.name.split(' ').slice(1).join(' ') || "User",
+          phone_number: formData.phone,
+          city: formData.area || "Hurghada",
+          country: "EGY",
+          street: "Hurghada",
+        },
+        currency: "EGP",
+        integration_id: integrationId,
+      }),
+    });
+
+    if (!paymentResponse.ok) throw new Error('Ошибка получения payment key');
+
+    const paymentData = await paymentResponse.json();
+    const paymentKey = paymentData.token;
+
+    // 3. Открываем Paymob попап (iframe)
+    const popup = window.open(
+      `https://accept.paymob.com/api/acceptance/iframes/${integrationId}?payment_token=${paymentKey}`,
+      '_blank',
+      'width=600,height=800'
+    );
+
+    if (!popup) {
+      alert("Разрешите всплывающие окна в браузере!");
+    }
+
+    // Опционально: ждём закрытия попапа и подтверждаем успех (простой вариант)
+    const checkPopup = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkPopup);
+        // Здесь можно добавить проверку статуса через webhook позже
+        onSuccess(); // показываем "Бронирование подтверждено"
+      }
+    }, 1000);
+
+  } catch (err) {
+    console.error('Paymob error:', err);
+    alert("Ошибка оплаты. Попробуйте позже или свяжитесь с нами.");
+  }
+};
 
   const getCleanerPrefLabel = (value: string) => {
     if (value === 'female') return t.femaleCrew;
